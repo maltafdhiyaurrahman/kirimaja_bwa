@@ -1,0 +1,160 @@
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuthLoginDto } from "./dto/auth-login.dto";
+import { AuthLoginResponse, UserResponse } from "./response/auth-login.response";
+import * as bcrypt from 'bcrypt';
+import { JwtService } from "@nestjs/jwt";
+import { plainToInstance } from "class-transformer";
+import { AuthRegisterDto } from "./dto/auth-register.dto";
+
+@Injectable()
+
+export class AuthService {
+    constructor(
+        private prismaService: PrismaService,
+        private jwtService: JwtService,
+    ) {}
+
+    async login(request: AuthLoginDto): Promise<AuthLoginResponse> {
+        const user = await this.prismaService.user.findUnique({
+            where: { email: request.email },
+            include: {
+                role: {
+                    include: {  
+                        rolePermissions: {
+                            include: {
+                                permission: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!user) {
+            throw new UnauthorizedException('Invalid email or password');
+        }
+
+        const isPasswordValid = await bcrypt.compare(request.password, user.password);
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Invalid email or password');
+        }
+
+        const payload = { 
+            sub: user.id, 
+            email: user.email,
+            name: user.name,
+            role: user.roleId, 
+        };
+
+        const accessToken = this.jwtService.sign(payload, {
+            secret: process.env.JWT_SECRET_KEY || 'secretkey',
+            expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as any,
+        });
+
+        const {password, ...userwhithoutPassword} = user;
+
+        const transformedUser = {
+            ...userwhithoutPassword,
+            role: {
+                ...user.role,
+                permissions: user.role.rolePermissions.map((rolePremission) => ({
+                    id: rolePremission.permission.id,
+                    name: rolePremission.permission.name,
+                    key: rolePremission.permission.key,
+                    resource: rolePremission.permission.resource,
+                }))
+            }
+        };
+
+        const userResponse = plainToInstance(UserResponse, transformedUser, {
+            excludeExtraneousValues: true,
+        }); 
+
+        return plainToInstance(AuthLoginResponse, {
+            accessToken,
+            user: userResponse,
+        }, {
+            excludeExtraneousValues: true,
+        });
+    }
+
+    async register(request: AuthRegisterDto): Promise<AuthLoginResponse> {
+        const existingUser = await this.prismaService.user.findUnique({
+            where: { email: request.email },
+        });
+
+        if (existingUser) {
+            throw new ConflictException('Email already registered');
+        }
+
+        const role = await this.prismaService.role.findFirst({
+            where: { key: 'customer' },
+        });
+
+        if (!role) {
+            throw new NotFoundException('Role Customer not found');
+        }
+
+        const hasedPassword = await bcrypt.hash(request.password, 10);
+
+        const user  = await this.prismaService.user.create({    
+            data: {
+                email: request.email,
+                name: request.name,
+                phoneNumber: request.phone_number,
+                password: hasedPassword,
+                roleId: role.id
+            },
+            include: {
+                role: {
+                    include: {
+                        rolePermissions: {
+                            include: {
+                                permission: true
+                            }   
+                        }
+                    }
+                }
+            }
+        });
+
+        const payload = { 
+            sub: user.id, 
+            email: user.email,
+            name: user.name,
+            role: user.roleId, 
+        };
+
+        const accessToken = this.jwtService.sign(payload, {
+            secret: process.env.JWT_SECRET_KEY || 'secretkey',
+            expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as any,
+        });
+
+        const {password, ...userwhithoutPassword} = user;
+
+        const transformedUser = {
+            ...userwhithoutPassword,
+            role: {
+                ...user.role,
+                permissions: user.role.rolePermissions.map((rolePremission) => ({
+                    id: rolePremission.permission.id,
+                    name: rolePremission.permission.name,
+                    key: rolePremission.permission.key,
+                    resource: rolePremission.permission.resource,
+                }))
+            }
+        };
+
+        const userResponse = plainToInstance(UserResponse, transformedUser, {
+            excludeExtraneousValues: true,
+        }); 
+
+        return plainToInstance(AuthLoginResponse, {
+            accessToken,
+            user: userResponse,
+        }, {
+            excludeExtraneousValues: true,
+        });
+    }
+}

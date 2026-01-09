@@ -1,0 +1,24 @@
+{
+    "data": [
+        {
+            "name": "Cabang Jakarta Pusat",
+            "address": "Jl. Sudirman No.123, Jakarta Pusat, DKI Jakarta",
+            "phoneNumber": "081234321"
+        },
+        {
+            "name": "Cabang Surabaya",
+            "address": "Jl. Pemuda No.456, Surabaya, Jawa Timur",
+            "phoneNumber": "081234567"
+        },
+        {
+            "name": "Cabang Bandung",
+            "address": "Jl. Asia Afrika No.789, Bandung, Jawa Barat",
+            "phoneNumber": "081234567"
+        },
+        {
+            "name": "Cabang Medan",
+            "address": "Jl. Merdeka No.101, Medan, Sumatera Utara",
+            "phoneNumber": "081234567"
+        }
+    ]
+}
