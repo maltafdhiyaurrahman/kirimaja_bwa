@@ -19,7 +19,7 @@ export class QrCodeService {
             const filePath = join(this.uploadsPath, fileName)
 
             await QRCode.toFile(filePath, trackingNumber)
-            return `uploads/qrcodes/${fileName}`
+            return `uploads/qrcode/${fileName}`
         } catch (error) {
             console.error('Error generating QR code: ', error)
             throw new Error('Failed to generate QR code for tracking number ' + trackingNumber)

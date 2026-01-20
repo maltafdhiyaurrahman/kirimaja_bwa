@@ -119,7 +119,7 @@ model UserAddress {
   user User @relation(fields: [userId], references: [id])
 
   @@map("user_addresses")
-  shipmentDetails ShipmentDetail[]
+  shipmentDetail ShipmentDetail[]
 }
 
 model Shipment {
@@ -134,9 +134,9 @@ model Shipment {
   upadatedAt       DateTime  @default(now()) @map("updated_at")
 
   @@map("shipments")
-  shipmentDetails ShipmentDetail[]
+  shipmentDetail ShipmentDetail?
   shipmentHistory ShipmentHistory[]
-  payment Payment[]
+  payment Payment?
   shipmentBranchLog ShipmentBranchLog[]
 }
 
@@ -188,7 +188,7 @@ model ShipmentHistory {
 
 model Payment {
   id              Int @id @default(autoincrement())
-  shipmentId      Int @map("shipment_id")
+  shipmentId      Int @map("shipment_id") @unique
   externalId      String? @map("external_id")
   invoiceId       String? @map("invoice_id")
   paymentMethod   String? @map("payment_method")
@@ -207,7 +207,7 @@ model ShipmentBranchLog {
   id                Int @id @default(autoincrement())
   shipmentId        Int @map("shipment_id")
   branchId          Int @map("branch_id")
-  tranckingNumber   String  @map("trancking_number")
+  trackingNumber   String  @map("tracking_number")
   type              String
   status            String
   description       String?

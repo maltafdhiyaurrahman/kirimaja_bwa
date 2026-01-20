@@ -56,7 +56,7 @@ CREATE TABLE `shipments` (
 -- CreateTable
 CREATE TABLE `shipment_details` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `sihpment_id` INTEGER NOT NULL,
+    `shipment_id` INTEGER NOT NULL,
     `user_id` INTEGER NOT NULL,
     `pickup_address_id` INTEGER NOT NULL,
     `weight` DOUBLE NULL,
@@ -75,7 +75,7 @@ CREATE TABLE `shipment_details` (
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    UNIQUE INDEX `shipment_details_sihpment_id_key`(`sihpment_id`),
+    UNIQUE INDEX `shipment_details_shipment_id_key`(`shipment_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -101,7 +101,7 @@ CREATE TABLE `payments` (
     `invoice_id` VARCHAR(191) NULL,
     `payment_method` VARCHAR(191) NULL,
     `status` VARCHAR(191) NULL,
-    `invouce_url` VARCHAR(191) NULL,
+    `invoice_url` VARCHAR(191) NULL,
     `expiry_date` DATETIME(3) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -136,7 +136,7 @@ ALTER TABLE `employee_branches` ADD CONSTRAINT `employee_branches_branch_id_fkey
 ALTER TABLE `user_addresses` ADD CONSTRAINT `user_addresses_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `shipment_details` ADD CONSTRAINT `shipment_details_sihpment_id_fkey` FOREIGN KEY (`sihpment_id`) REFERENCES `shipments`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `shipment_details` ADD CONSTRAINT `shipment_details_shipment_id_fkey` FOREIGN KEY (`shipment_id`) REFERENCES `shipments`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `shipment_details` ADD CONSTRAINT `shipment_details_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

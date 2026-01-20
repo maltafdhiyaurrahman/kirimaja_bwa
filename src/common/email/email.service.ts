@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import * as nodemailer from "nodemailer"
 import * as path from "path";
+import { Subject } from "rxjs";
 
 @Injectable()
 export class EmailService {
@@ -63,7 +64,7 @@ export class EmailService {
         expiryDate: Date
     ): Promise<void> {
         const templateData = {
-            shipmentId  ,
+            shipmentId,
             paymentUrl,
             amount: amount.toLocaleString('id-ID'),
             expiryDate: expiryDate.toDateString()
@@ -79,6 +80,31 @@ export class EmailService {
             to,
             subject: `Payment Notification for Shipment #${shipmentId}`,
             html: htmlContent
+        }
+
+        await this.trasnporter.sendMail(mailOptions)
+    }
+
+    async sendPaymentSuccess(
+        to: string,
+        shipmentId: number,
+        amount: number,
+        trackingNumber?: string
+    ): Promise<void> {
+        const templateData = {
+            shipmentId,
+            amount: amount.toLocaleString('id-ID'),
+            paymentDate: new Date().toLocaleDateString('id-ID'),
+            trackingNumber
+        }
+
+        const html = this.compileTemplate('payment-success', templateData)
+
+        const mailOptions = {
+            from: process.env.SMTP_EMAIL_SENDER || '',
+            to,
+            subject: `Payment Successful - Shipment #${shipmentId}`,
+            html
         }
 
         await this.trasnporter.sendMail(mailOptions)

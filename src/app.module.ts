@@ -13,6 +13,7 @@ import { UserAddressesModule } from './modules/user-addresses/user-addresses.mod
 import { EmailService } from './common/email/email.service';
 import { QueueModule } from './common/queue/queue.module';
 import { ShipmentsModule } from './modules/shipments/shipments.module';
+import { HistoryModule } from './modules/history/history.module';
 
 @Module({
     imports: [
@@ -24,7 +25,8 @@ import { ShipmentsModule } from './modules/shipments/shipments.module';
         EmployeeBranchesModule, 
         UserAddressesModule,
         QueueModule,
-        ShipmentsModule 
+        ShipmentsModule,
+        HistoryModule 
     ],
     controllers: [AppController],
     providers: [AppService, JwtStrategy, PrismaService, EmailService],

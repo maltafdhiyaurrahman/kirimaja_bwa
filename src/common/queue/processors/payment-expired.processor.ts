@@ -34,7 +34,7 @@ export class PaymentExpiryQueueProcessor {
                 include: {
                     shipment: {
                         include: {
-                            shipmentDetails: {
+                            shipmentDetail: {
                                 include: {
                                     user: {
                                         select: {

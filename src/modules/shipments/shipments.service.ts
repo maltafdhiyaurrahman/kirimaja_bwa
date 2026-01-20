@@ -11,6 +11,7 @@ import { PaymentStatus } from 'src/common/enum/payment-status.enum';
 import { XenditWebhookDto } from './dto/xendit-webhook.dto';
 import { QrCodeService } from 'src/common/qrcode/qrcode.service';
 import { ShipmentStatus } from 'src/common/enum/shipment-status.enum';
+import { PdfService, ShipmentPdfData } from 'src/common/pdf/pdf.service';
 
 @Injectable()
 export class ShipmentsService {
@@ -19,7 +20,8 @@ export class ShipmentsService {
     private queueService: QueueService,
     private openCageService: OpenCageService,
     private xenditService: XenditService,
-    private qrcodeService: QrCodeService
+    private qrcodeService: QrCodeService,
+    private pdfService: PdfService
   ) {}
 
   async create(createShipmentDto: CreateShipmentDto): Promise<Shipment> {
@@ -79,7 +81,7 @@ export class ShipmentsService {
           packageType: createShipmentDto.package_type,
           deliveryType: createShipmentDto.delivery_type,
           destinationLatitude: lat,
-          destinationlongitude: lng,
+          destinationLongitude: lng,
           basePrice: shipmentCost.basePrice,
           weightPrice: shipmentCost.weightPrice,
           distancePrice: shipmentCost.distancePrice,
@@ -96,7 +98,7 @@ export class ShipmentsService {
       payerEmail: userAddress.user.email,
       description: `Shipment #${shipment.id} from ${userAddress.address} to ${createShipmentDto.destination_address}`,
       successRedirectUrl: `${process.env.FRONTEND_URL}/send-package/detail/${shipment.id}`,
-      invoiceDuration: 10
+      invoiceDuration: 86400
     })
 
     const payment = await this.prismaService.$transaction(async (prisma) => {
@@ -126,7 +128,7 @@ export class ShipmentsService {
       await this.queueService.addEmailJob({
         type: 'payment-notification',
         to: userAddress.user.email,
-        shipmenId: shipment.id,
+        shipmentId: shipment.id,
         amount: shipmentCost.totalPrice,
         paymentUrl: invoice.invoiceUrl,
         expiryDate: invoice.expiryDate
@@ -227,25 +229,78 @@ export class ShipmentsService {
               userId: payment.shipment.shipmentDetail?.userId
             }
           })
+
+          try {
+            await this.queueService.cancelPaymnentExpiryJob(payment.id)
+          } catch (error) {
+            console.error(
+              'Failed to cancel payment expiry job: ', error
+            )
+          }
+
+          try {
+            const userEmail = payment.shipment.shipmentDetail?.user.email
+
+            if (userEmail) {
+              await this.queueService.addEmailJob({
+                type: 'payment-success',
+                to: userEmail,
+                shipmentId: payment.shipmentId,
+                amount: payment.shipment.price || webHookData.amount,
+                trackingNumber: payment.shipment.trackingNumber || undefined
+              })
+            }
+          } catch (error) {
+            console.error(
+              'Failed to add payment success email to queue: ',
+              error
+            )
+          }
         }
       }
     )
   }
 
-  findAll() {
-    return `This action returns all shipments`;
+  async findAll(userId: number): Promise<Shipment[]> {
+    return this.prismaService.shipment.findMany({
+      where: {
+        shipmentDetail: {
+          userId: userId
+        }
+      },
+      include:{
+        shipmentDetail: true,
+        payment: true,
+        shipmentHistory: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} shipment`;
-  }
+  async findOne(id: number): Promise<Shipment> {
+    const shipment = await this.prismaService.shipment.findUnique({
+      where: {
+        id: id
+      },
+      include: {
+        shipmentDetail: {
+          include: {
+            user: true,
+            address: true
+          }
+        },
+        payment: true,
+        shipmentHistory: true
+      }
+    })
 
-  update(id: number, updateShipmentDto: UpdateShipmentDto) {
-    return `This action updates a #${id} shipment`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} shipment`;
+    if (!shipment) {
+      throw new NotFoundException(`Shipment with ID ${id} not found`)
+    }
+    console.log("Data dari Prisma:", JSON.stringify(shipment, null, 2));
+    return shipment
   }
 
   private calculateShipmentCost(
@@ -259,14 +314,14 @@ export class ShipmentsService {
     distancePrice: number
   } {
     const baseRates = {
-      same_day: 15000,
-      nest_day: 10000,
-      reguler: 5000
+      same_day: 13000,
+      next_day: 15000,
+      reguler: 8000
     }
 
     const weightRates = {
       same_day: 1000,
-      nest_day: 800,
+      next_day: 800,
       reguler: 500
     }
 
@@ -276,7 +331,7 @@ export class ShipmentsService {
         tier2: 12000,
         tier3: 15000
       },
-      nest_day: {
+      next_day: {
         tier1: 6000,
         tier2: 9000,
         tier3: 12000
@@ -318,5 +373,96 @@ export class ShipmentsService {
       weightPrice,
       distancePrice
     }
+  }
+
+  async generateShipmentPdf(
+    shipmentId: number
+  ): Promise<Buffer> {
+    const shipment = await this.prismaService.shipment.findUnique({
+      where: {
+        id: shipmentId
+      },
+      include: {
+        shipmentDetail: {
+          include: {
+            user: true,
+            address: true
+          }
+        },
+        payment: true
+      }
+    })
+
+    if (!shipment) {
+      throw new NotFoundException(
+        `Shipment with ID ${shipmentId} not found`
+      )
+    }
+
+    const shipmentDetail = shipment.shipmentDetail
+
+    if (!shipmentDetail) {
+      throw new NotFoundException(
+        `Shipment detail for shipment ID ${shipmentId} not found`
+      )
+    }
+
+    const dataPdf: ShipmentPdfData = {
+      trackingNumber: shipment.trackingNumber || 'N/A',
+      shipmentId: shipment.id,
+      createdAt: shipment.createdAt,
+      deliveryType: shipmentDetail.deliveryType,
+      packageType: shipmentDetail.packageType,
+      weight: shipmentDetail.weight || 0,
+      price: shipment.price || 0,
+      distance: shipment.distance || 0,
+      paymentStatus: shipment.paymentStatus || 'N/A',
+      deliveryStatus: shipment.deliveryStatus || 'N/A',
+      basePrice: shipmentDetail.basePrice || 0,
+      weightPrice: shipmentDetail.weightPrice || 0,
+      distancePrice: shipmentDetail.distancePrice || 0,
+      senderName: shipmentDetail.user.name || 'N/A',
+      senderEmail: shipmentDetail.user.email || 'N/A',
+      senderPhone: shipmentDetail.user.phoneNumber || 'N/A',
+      pickupAddress: `${shipmentDetail.address?.address}` || 'N/A',
+      recipientName: shipmentDetail.recieptName || 'N/A',
+      recipientPhone: shipmentDetail.recieptPhone || 'N/A',
+      destinationAddress: `${shipmentDetail.destinationAddress}` || 'N/A',
+      qrCodePath: shipment.qrCodeImage || (await this.qrcodeService.generateQrCode(shipment.trackingNumber || 'N/A'))
+    }
+
+    return this.pdfService.generateShipmentPdf(dataPdf)
+  }
+
+  async findShipmentByTrackingNumber(
+    trackingNumber: string
+  ): Promise<Shipment> {
+    const shipment = await this.prismaService.shipment.findFirst({
+      where: {
+        trackingNumber
+      },
+      include: {
+        shipmentDetail: {
+          include: {
+            user: true,
+            address: true
+          }
+        },
+        payment: true,
+        shipmentHistory: {
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
+      }
+    })
+
+    if (!shipment) {
+      throw new NotFoundException(
+        `Shipment with tracking number ${trackingNumber} not found`
+      )
+    }
+
+    return shipment
   }
 }
