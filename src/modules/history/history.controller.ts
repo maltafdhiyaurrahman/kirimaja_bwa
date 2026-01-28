@@ -12,7 +12,7 @@ export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}
 
   @Get()
-  @RequirePermissions('shipment.read')
+  @RequirePermissions('history.read')
   async findAll(
     @Req() req: Request & {user?: User}
   ): Promise<BaseResponse<Shipment[]>> {

@@ -141,6 +141,14 @@ export class ShipmentBranchService {
                     scannedByUser: true
                 }
             })
+
+            await prisma.shipment.update({
+                where: {id: shipment.id},
+                data: {
+                    deliveryStatus: newStatus
+                }
+            })
+
             await prisma.shipmentHistory.create({
                 data: {
                     shipmentId: shipment.id,

@@ -216,7 +216,7 @@ export class ShipmentCourierService {
                     id: shipment.id
                 },
                 data: {
-                    deliveryStatus: ShipmentStatus.READY_TO_PICKUP_AT_BRANCH
+                    deliveryStatus: ShipmentStatus.IN_TRANSIT
                 }
             })
 
@@ -225,7 +225,7 @@ export class ShipmentCourierService {
                     shipmentId: updateShipment.id,
                     userId: userId,
                     branchId: userBranch.branchId,
-                    status: ShipmentStatus.READY_TO_PICKUP_AT_BRANCH,
+                    status: ShipmentStatus.IN_TRANSIT,
                     description: `Shipment picked up by user with ID ${userId}`
                 }
             })

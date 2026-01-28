@@ -18,7 +18,7 @@ export class ShipmentBranchController {
     ) {}
 
     @Get('logs')
-    @RequirePermissions('delivery.read')
+    @RequirePermissions('shipment-branch.read')
     async findAll(
         @Req() req: Request & {user?: any}
     ): Promise<BaseResponse<ShipmentBranchLog[]>> {
